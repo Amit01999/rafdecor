@@ -83,7 +83,7 @@ export function AdminProducts() {
   );
 }
 
-const EMPTY = { name: "", slug: "", short_description: "", description: "", category_ids: [], status: "draft", featured: false, sku: "", price: 0, sale_price: null, manage_stock: false, stock_quantity: null, stock_status: "in_stock", low_stock_threshold: 2, attributes: [], variants: [], images: [], specs: [], dimensions: "", materials: "", shipping_charge: 0, tags: [], seo: { title: "", description: "" }, publish_at: null };
+const EMPTY = { name: "", slug: "", short_description: "", description: "", category_ids: [], status: "draft", featured: false, sku: "", price: 0, sale_price: null, manage_stock: false, stock_quantity: null, stock_status: "in_stock", low_stock_threshold: 2, attributes: [], variants: [], images: [], specs: [], dimensions: "", materials: "", shipping_charge: 0, weight: 0, extra_qty_charge: 0, tags: [], seo: { title: "", description: "" }, publish_at: null };
 
 export function ProductEditor() {
   const { id } = useParams();
@@ -170,8 +170,8 @@ export function ProductEditor() {
               return (
                 <div key={v.id || i} className="grid items-end gap-2 border border-[#EFE7DA] p-3 sm:grid-cols-6" data-testid={`pe-variant-${i}`}>
                   {p.attributes.map((a: any) => <div key={a.name}><L>{a.name}</L><select value={v.attributes[a.name] || ""} onChange={(e) => upd("attributes", { ...v.attributes, [a.name]: e.target.value })} className={inp}>{a.values.map((x: string) => <option key={x}>{x}</option>)}</select></div>)}
-                  <div><L>Price</L><input type="number" value={v.price || ""} onChange={(e) => upd("price", e.target.value === "" ? 0 : Number(e.target.value))} className={inp} /></div>
-                  <div><L>Sale</L><input type="number" value={v.sale_price ?? ""} onChange={(e) => upd("sale_price", num(e.target.value))} className={inp} /></div>
+                  <div><L>Price</L><input type="text" inputMode="decimal" value={v.price || ""} onChange={(e) => { const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"); upd("price", raw === "" ? 0 : Number(raw)); }} className={inp} /></div>
+                  <div><L>Sale</L><input type="text" inputMode="decimal" value={v.sale_price ?? ""} onChange={(e) => { const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"); upd("sale_price", num(raw)); }} className={inp} /></div>
                   <div><L>Stock</L><input type="number" value={v.stock_quantity ?? ""} onChange={(e) => upd("stock_quantity", num(e.target.value))} className={inp} disabled={!p.manage_stock} /></div>
                   <button onClick={() => set("variants", p.variants.filter((_: any, j: number) => j !== i))} className="h-9 text-xs text-red-800 underline">Remove</button>
                 </div>
@@ -189,7 +189,11 @@ export function ProductEditor() {
           <Card title="Pricing (৳)"><div className="grid grid-cols-2 gap-3">
             <div><L>Regular price</L><input type="number" value={p.price || ""} onChange={(e) => set("price", e.target.value === "" ? 0 : Number(e.target.value))} className="input-rd" data-testid="pe-price" /></div>
             <div><L>Sale price</L><input type="number" value={p.sale_price ?? ""} onChange={(e) => set("sale_price", num(e.target.value))} className="input-rd" data-testid="pe-sale-price" /></div>
-            <div className="col-span-2"><L>Delivery charge</L><input type="number" value={p.shipping_charge || ""} onChange={(e) => set("shipping_charge", e.target.value === "" ? 0 : Number(e.target.value))} className="input-rd" data-testid="pe-shipping" /></div>
+            <div><L>Delivery charge</L><input type="number" value={p.shipping_charge || ""} onChange={(e) => set("shipping_charge", e.target.value === "" ? 0 : Number(e.target.value))} className="input-rd" data-testid="pe-shipping" /></div>
+            <div><L>Weight (kg)</L><input type="number" min={0} step="0.01" value={p.weight || ""} onChange={(e) => set("weight", e.target.value === "" ? 0 : Number(e.target.value))} className="input-rd" data-testid="pe-weight" /></div>
+            <div className="col-span-2"><L>Extra delivery charge per extra unit (৳)</L><input type="number" min={0} value={p.extra_qty_charge || ""} onChange={(e) => set("extra_qty_charge", e.target.value === "" ? 0 : Number(e.target.value))} className="input-rd" data-testid="pe-extra-qty-charge" />
+              <p className="mt-1 text-xs text-[#7A6960]">Adds this amount for each unit of this product beyond the first — e.g. the delivery charge above covers 1, and this is added per extra one ordered. Leave at 0 to keep the delivery charge the same no matter the quantity.</p>
+            </div>
           </div></Card>
           <Card title="Inventory"><div className="space-y-3">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.manage_stock} onChange={(e) => set("manage_stock", e.target.checked)} className="accent-[#4E3629]" data-testid="pe-manage-stock" />Track stock quantity</label>

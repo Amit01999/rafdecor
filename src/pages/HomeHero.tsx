@@ -16,11 +16,11 @@ import fruitBowlImageLg from '@/assets/hero/4.bowa-lg.jpg';
 
 const HERO_PRODUCTS = [
   {
-    id: 'eco-stool',
+    id: 'natural-wood-stool',
     label: '01 / Stool',
     category: 'Minimalist',
-    title: 'Eco Stool',
-    titleLines: ['ECO', 'STOOL'],
+    title: 'Natural Wood Stool',
+    titleLines: ['NATURAL', 'WOOD STOOL'],
     description:
       'A clean-lined Shishu wood stool with a naturally grained round seat, made to bring a warm, useful accent to living spaces and work corners.',
     details: 'Premium Shishu wood · 14″ × 14″ top · 18″ height',
@@ -32,11 +32,11 @@ const HERO_PRODUCTS = [
     cta: 'Explore stool',
   },
   {
-    id: 'neutral-raintree-table',
-    label: '02 / Raintree',
-    category: 'Neutral-toned',
-    title: 'Neutral-toned Raintree Table',
-    titleLines: ['RAINTREE', 'TABLE'],
+    id: 'wooden-round-table',
+    label: '02 / Round Table',
+    category: 'Wooden',
+    title: 'Wooden Round Table',
+    titleLines: ['WOODEN', 'ROUND TABLE'],
     description:
       'A live-edge Raintree tabletop brings rich natural grain into a calm, neutral interior, balanced by slender black iron legs.',
     details: 'Raintree wood · Live edge · Iron legs',
@@ -48,14 +48,14 @@ const HERO_PRODUCTS = [
     cta: 'Explore table',
   },
   {
-    id: 'wooden-spice-box',
-    label: '03 / Spice jars',
+    id: 'mahogany-wooden-roti-pot',
+    label: '03 / Wooden Roti Pot',
     category: 'Handcrafted',
-    title: 'Wooden Spice Jars',
-    titleLines: ['WOODEN', 'SPICE JARS'],
+    title: 'Wooden Roti Pot — Mahogany Wood',
+    titleLines: ['WOODEN', 'ROTI POT'],
     description:
-      'A trio of handcrafted wooden jars with fitted lids and expressive natural grain brings warm, practical storage to the kitchen.',
-    details: 'Three lidded jars · Natural wood grain',
+      'A handcrafted mahogany wooden roti pot with natural wood grain, designed to bring warmth and elegance to everyday food presentation.',
+    details: 'Mahogany wood · 10-inch outer diameter · 3-inch height',
     image: woodenJarsImageLg,
     imageSrcSet: `${woodenJarsImageSm} 1000w, ${woodenJarsImageLg} 1448w`,
     imageAlt: 'Three handcrafted wooden spice jars displayed on a stone tray',
@@ -64,17 +64,18 @@ const HERO_PRODUCTS = [
     cta: 'Explore spice box',
   },
   {
-    id: 'royal-wooden-fruit-bowl',
+    id: 'premium-wooden-fruit-bowl',
     label: '04 / Fruit bowl',
-    category: 'Royal',
-    title: 'Royal Wooden Fruit Bowl',
+    category: 'Premium',
+    title: 'Premium wooden fruit bowl',
     titleLines: ['FRUIT', 'BOWL'],
     description:
       'A sculptural wooden fruit bowl with distinctive natural grain, bringing a warm, crafted focal point to the kitchen or dining table.',
     details: 'Natural wood · Fruit serving · Tabletop display',
     image: fruitBowlImageLg,
     imageSrcSet: undefined,
-    imageAlt: 'Royal wooden fruit bowl styled with fresh fruit in a bright kitchen',
+    imageAlt:
+      'Premium wooden fruit bowl styled with fresh fruit in a bright kitchen',
     imagePosition: 'center 62%',
     href: '/product/premium-wooden-sishu-fruit-bowl',
     cta: 'Explore fruit bowl',
@@ -88,7 +89,7 @@ const HERO_INTERVAL_MS = 4700;
 // timer below covers whichever element finishes last across the whole
 // transition — no longer just the image alone, since text can now legitimately
 // take just as long.
-const HERO_IMAGE_DURATION_MS = 2000; // 2.0s — within the 1.8–2.2s reference range
+const HERO_IMAGE_DURATION_MS = 1700; // 1.7s — slightly quicker than the prior 2.0s
 const HERO_IMAGE_DELAY_MS = 0;
 
 // This project uses Framer Motion (no GSAP dependency), so these are the
@@ -120,6 +121,25 @@ const HERO_TEXT_ENTER_X = '100vw';
 const HERO_TEXT_EXIT_X = '-100vw';
 const HERO_TEXT_ENTER_DURATION_MS = 1800; // 1.8s — within the 1.6–2.0s reference range
 const HERO_TEXT_EXIT_DURATION_MS = 2000; // 2.0s — deliberately unhurried; this was the "too fast" complaint
+
+// The very first slide (product index 0) gets a distinct, cinematic entrance
+// instead of the cross-screen sweep used everywhere else: a plain, subtle
+// opacity reveal paired with a gentle upward drift — no scale, no bounce,
+// nothing "flashy" — so the opening impression reads as calm and considered.
+// Its exit (when moving on to the next slide) is untouched and still uses the
+// shared sweep above, like every other slide.
+// 18px combined with the old expo.out curve (very steep deceleration) meant
+// most of the frames near the end moved well under a device pixel, which
+// reads as jitter rather than smooth motion — especially on text. A slightly
+// larger distance plus a gentler, more even cubic easeOut keeps every frame's
+// delta large enough to render cleanly.
+const HERO_FIRST_ENTER_Y = 24; // px — a gentle upward drift, not a sweep
+const HERO_FIRST_ENTER_DURATION_MS = 1300;
+const HERO_FIRST_ENTER_EASE = [0.33, 1, 0.68, 1] as const; // cubic easeOut — even deceleration, no micro-stutter tail
+// Stretches the shared stagger pattern (same relative order as every other
+// slide's entrance) into a slower, more deliberate cascade, befitting the
+// slower fade rather than the quick cross-screen sweep.
+const HERO_FIRST_ENTER_STAGGER_MULTIPLIER = 2.5;
 
 // The eyebrow, footer URL and secondary "view collection" link carry identical
 // copy on every product. With every line now taking 1.8–2.0s to cross the
@@ -179,6 +199,10 @@ function ProductCopy({
 }) {
   const entering = mode === 'incoming' || initialReveal;
   const leaving = mode === 'outgoing';
+  // The very first slide gets a distinct entrance (see HERO_FIRST_ENTER_*
+  // above) instead of the cross-screen sweep; its exit is unaffected.
+  const isFirstSlide = product.id === HERO_PRODUCTS[0].id;
+  const firstEntering = isFirstSlide && entering && !reduceMotion;
   // Each line physically crosses the hero section on its own: starts/ends fully
   // outside the viewport (HERO_TEXT_ENTER_X / HERO_TEXT_EXIT_X), with no shared
   // parent transform between lines or with the image. The image (in
@@ -190,11 +214,17 @@ function ProductCopy({
     exitEase: readonly [number, number, number, number] = HERO_TEXT_EASE,
   ) => ({
     initial:
-      !reduceMotion && entering ? { opacity: 0, x: HERO_TEXT_ENTER_X } : false,
+      !reduceMotion && entering
+        ? firstEntering
+          ? { opacity: 0, x: 0, y: HERO_FIRST_ENTER_Y }
+          : { opacity: 0, x: HERO_TEXT_ENTER_X }
+        : false,
     animate:
       !reduceMotion && leaving
         ? { opacity: 0, x: HERO_TEXT_EXIT_X }
-        : { opacity: 1, x: 0 },
+        : firstEntering
+          ? { opacity: 1, x: 0, y: 0 }
+          : { opacity: 1, x: 0 },
     transition:
       !reduceMotion && leaving
         ? {
@@ -203,20 +233,42 @@ function ProductCopy({
             ease: exitEase,
           }
         : {
-            duration: reduceMotion ? 0 : HERO_TEXT_ENTER_DURATION_MS / 1000,
-            delay: reduceMotion ? 0 : entering ? enterDelayMs / 1000 : 0,
-            ease: HERO_TEXT_EASE,
+            duration: reduceMotion
+              ? 0
+              : (firstEntering
+                  ? HERO_FIRST_ENTER_DURATION_MS
+                  : HERO_TEXT_ENTER_DURATION_MS) / 1000,
+            delay: reduceMotion
+              ? 0
+              : entering
+                ? ((firstEntering
+                    ? enterDelayMs * HERO_FIRST_ENTER_STAGGER_MULTIPLIER
+                    : enterDelayMs) /
+                    1000)
+                : 0,
+            ease: firstEntering ? HERO_FIRST_ENTER_EASE : HERO_TEXT_EASE,
           },
+    // Promotes the element to its own GPU layer before the animation starts
+    // (matching the image's own willChange below) — without this, a transform
+    // animation that begins immediately on mount can visibly stutter on its
+    // first frames while the browser promotes the layer mid-animation.
+    style: firstEntering ? { willChange: 'opacity, transform' } : undefined,
   });
   // Same full-width crossing as lineMotion, with a small extra stagger between
   // the headline's own lines (e.g. two-line titles reveal top line first).
   const titleMotion = (index: number) => ({
     initial:
-      !reduceMotion && entering ? { opacity: 0, x: HERO_TEXT_ENTER_X } : false,
+      !reduceMotion && entering
+        ? firstEntering
+          ? { opacity: 0, x: 0, y: HERO_FIRST_ENTER_Y }
+          : { opacity: 0, x: HERO_TEXT_ENTER_X }
+        : false,
     animate:
       !reduceMotion && leaving
         ? { opacity: 0, x: HERO_TEXT_EXIT_X }
-        : { opacity: 1, x: 0 },
+        : firstEntering
+          ? { opacity: 1, x: 0, y: 0 }
+          : { opacity: 1, x: 0 },
     transition:
       !reduceMotion && leaving
         ? {
@@ -225,15 +277,23 @@ function ProductCopy({
             ease: HERO_TEXT_EASE,
           }
         : {
-            duration: reduceMotion ? 0 : HERO_TEXT_ENTER_DURATION_MS / 1000,
-            delay:
-              reduceMotion
-                ? 0
-                : entering
-                  ? (HERO_ENTER_HEADING_DELAY_MS + index * 60) / 1000
-                  : 0,
-            ease: HERO_TEXT_EASE,
+            duration: reduceMotion
+              ? 0
+              : (firstEntering
+                  ? HERO_FIRST_ENTER_DURATION_MS
+                  : HERO_TEXT_ENTER_DURATION_MS) / 1000,
+            delay: reduceMotion
+              ? 0
+              : entering
+                ? ((firstEntering
+                    ? (HERO_ENTER_HEADING_DELAY_MS + index * 60) *
+                      HERO_FIRST_ENTER_STAGGER_MULTIPLIER
+                    : HERO_ENTER_HEADING_DELAY_MS + index * 60) /
+                    1000)
+                : 0,
+            ease: firstEntering ? HERO_FIRST_ENTER_EASE : HERO_TEXT_EASE,
           },
+    style: firstEntering ? { willChange: 'opacity, transform' } : undefined,
   });
 
   return (
@@ -250,41 +310,42 @@ function ProductCopy({
               HERO_EXIT_PROTECTED_DURATION_MS,
               HERO_TEXT_PROTECTED_EXIT_EASE,
             )}
-            className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#FAF7F2]/90 drop-shadow-sm sm:text-xs"
+            className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#FAF7F2]/90 drop-shadow-sm sm:text-xs "
           >
             RAF Decor &amp; Living
           </motion.p>
           <motion.p
-            {...lineMotion(HERO_ENTER_CATEGORY_DELAY_MS, HERO_EXIT_CATEGORY_DELAY_MS)}
-            className="mt-12 font-sans text-lg font-light tracking-[0.22em] text-[#E3B391] drop-shadow-sm sm:mt-14 sm:text-2xl lg:text-[1.7rem]"
+            {...lineMotion(
+              HERO_ENTER_CATEGORY_DELAY_MS,
+              HERO_EXIT_CATEGORY_DELAY_MS,
+            )}
+            className="mt-6 font-sans text-lg font-light tracking-[0.22em] text-[#E3B391] drop-shadow-sm sm:text-2xl lg:text-[1.7rem]"
           >
             {product.category}
           </motion.p>
-          <motion.h1
-            className="mx-auto mt-1 max-w-[12ch] font-sans text-[2.75rem] font-black uppercase leading-[0.88] tracking-[-0.055em] text-[#FAF7F2] drop-shadow-[0_4px_20px_rgba(20,15,12,0.4)] sm:text-7xl lg:text-[6.2rem] xl:text-[7rem]"
-          >
+          <motion.h1 className="mx-auto mt-1 max-w-[12ch] font-sans text-[2.75rem] font-black uppercase leading-[0.88] tracking-[-0.055em] text-[#FAF7F2] drop-shadow-[0_4px_20px_rgba(20,15,12,0.4)] sm:text-7xl lg:text-[6.2rem] xl:text-[7rem]">
             {product.titleLines.map((line, index) => (
-              <span
-                key={`${product.id}-${line}`}
-                className="block pb-[0.08em]"
-              >
-                <motion.span
-                  {...titleMotion(index)}
-                  className="block"
-                >
+              <span key={`${product.id}-${line}`} className="block pb-[0.08em]">
+                <motion.span {...titleMotion(index)} className="block">
                   {line}
                 </motion.span>
               </span>
             ))}
           </motion.h1>
           <motion.p
-            {...lineMotion(HERO_ENTER_DESCRIPTION_DELAY_MS, HERO_EXIT_DESCRIPTION_DELAY_MS)}
+            {...lineMotion(
+              HERO_ENTER_DESCRIPTION_DELAY_MS,
+              HERO_EXIT_DESCRIPTION_DELAY_MS,
+            )}
             className="mx-auto mt-5 max-w-[580px] font-bn text-sm leading-7 text-[#FAF7F2]/95 drop-shadow-md sm:mt-6 sm:text-base"
           >
             {product.description}
           </motion.p>
           <motion.p
-            {...lineMotion(HERO_ENTER_DETAILS_DELAY_MS, HERO_EXIT_DETAILS_DELAY_MS)}
+            {...lineMotion(
+              HERO_ENTER_DETAILS_DELAY_MS,
+              HERO_EXIT_DETAILS_DELAY_MS,
+            )}
             className="mt-3 text-[9px] font-medium uppercase tracking-[0.16em] text-[#F2ECE0]/90 drop-shadow sm:text-[10px]"
           >
             {product.details}
@@ -382,7 +443,10 @@ export default function HomeHero({ s }: { s: any }) {
         if (settled) return;
         settled = true;
         if (typeof image.decode === 'function') {
-          void image.decode().catch(() => undefined).then(() => resolve());
+          void image
+            .decode()
+            .catch(() => undefined)
+            .then(() => resolve());
         } else {
           resolve();
         }
@@ -527,14 +591,16 @@ export default function HomeHero({ s }: { s: any }) {
   ]);
 
   const selectProduct = (index: number) => transitionTo(index);
-  const selectNext = () =>
-    transitionTo((activeIndexRef.current + 1) % count);
+  const selectNext = () => transitionTo((activeIndexRef.current + 1) % count);
   const selectPrevious = () =>
     transitionTo((activeIndexRef.current - 1 + count) % count);
 
   const handleBlur = (event: React.FocusEvent<HTMLElement>) => {
     const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+    if (
+      nextTarget instanceof Node &&
+      event.currentTarget.contains(nextTarget)
+    ) {
       return;
     }
     setHasFocus(false);
@@ -650,7 +716,10 @@ export default function HomeHero({ s }: { s: any }) {
       {displayedIndexes.map(index => renderSlide(index))}
 
       <div className="absolute bottom-5 right-5 z-40 flex items-center gap-3 sm:bottom-8 sm:right-8 sm:gap-5">
-        <div className="hidden items-center gap-1.5 lg:flex" aria-label="Choose a featured product">
+        <div
+          className="hidden items-center gap-1.5 lg:flex"
+          aria-label="Choose a featured product"
+        >
           {HERO_PRODUCTS.map((product, index) => (
             <button
               key={product.id}
@@ -672,7 +741,10 @@ export default function HomeHero({ s }: { s: any }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 lg:hidden" aria-label="Choose a featured product">
+        <div
+          className="flex items-center gap-1.5 lg:hidden"
+          aria-label="Choose a featured product"
+        >
           {HERO_PRODUCTS.map((product, index) => (
             <button
               key={product.id}

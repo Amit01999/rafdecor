@@ -86,7 +86,7 @@ export default function AdminLayout() {
             </span>
           </span>
         </Link>
-        <div className="min-h-0 flex-1 overflow-y-auto">{side}</div>
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">{side}</div>
         <div className="shrink-0 border-t border-white/10 p-3">
           <button
             onClick={async () => {

@@ -42,9 +42,9 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
           </div>
         </li>
       ))}
-      {quote.issues.filter((i) => i.code === "unavailable").map((i) => (
-        <li key={i.product_id} className="flex items-center justify-between py-4 text-sm text-red-800">
-          {i.message}<button className="underline" onClick={() => remove(i.product_id, i.variant_id)}>Remove</button>
+      {quote.issues.filter((i) => i.code === "unavailable" || i.code === "variant_required").map((i) => (
+        <li key={i.product_id + (i.variant_id || "")} className="flex items-center justify-between gap-3 py-4 text-sm text-red-800">
+          {i.message}<button className="shrink-0 underline" onClick={() => remove(i.product_id, i.variant_id)}>Remove</button>
         </li>
       ))}
     </ul>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, Truck } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { api, API_BASE, errorMessage } from "@/lib/api";
 import { money, fmtDate, STATUS_LABELS, cldImg } from "@/lib/format";
@@ -58,6 +58,10 @@ export function AdminOrderDetail() {
     if (!st.status) return;
     if (st.status === "cancelled" && !(await confirm("Cancel this order?", st.restock ? "Items will be returned to stock." : "Stock will NOT be restored unless you tick “Return items to stock”."))) return;
     run(() => api.post(`/admin/orders/${o.id}/status`, st), "Status updated").then(() => setSt({ status: "", note: "", visible_to_customer: true, restock: false }));
+  };
+  const sendToSteadfast = async () => {
+    if (o.courier?.tracking_number && !(await confirm("Send to Steadfast again?", `This order already has a tracking number (${o.courier.tracking_number}). Sending again creates a new Steadfast consignment.`))) return;
+    run(() => api.post(`/admin/orders/${o.id}/steadfast`), "Sent to Steadfast");
   };
   const remaining = o.total - o.payment.amount_paid;
   return (
@@ -119,7 +123,19 @@ export function AdminOrderDetail() {
             </div></Card>
           )}
           {can("orders.write") && <>
-            <Card title="Courier"><form className="space-y-2" onSubmit={(e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.currentTarget)); run(() => api.post(`/admin/orders/${o.id}/courier`, f), "Courier saved"); }}>
+            <Card title="Steadfast Courier" className="border-[#B07A5B]">
+              <p className="mb-4 text-xs text-[#7A6960]">One click — no fields to fill in. We'll send this order's customer and address details to Steadfast and save the tracking number here automatically once it's booked.</p>
+              <button onClick={sendToSteadfast} className={`${btn} h-11 w-full justify-center gap-2 text-sm`} data-testid="send-steadfast-btn">
+                <Truck className="h-4 w-4" />
+                Send to Steadfast
+              </button>
+              {o.courier?.name === "Steadfast Courier" && o.courier?.tracking_number && (
+                <p className="mt-3 text-center text-xs text-[#7A6960]">Booked · tracking <span className="font-medium text-[#2C1E18]">{o.courier.tracking_number}</span></p>
+              )}
+            </Card>
+            <Card title="Manual tracking entry">
+              <p className="mb-3 text-xs text-[#7A6960]">For a different courier, or to enter tracking by hand.</p>
+              <form key={o.courier?.tracking_number || "empty"} className="space-y-2" onSubmit={(e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.currentTarget)); run(() => api.post(`/admin/orders/${o.id}/courier`, f), "Courier saved"); }}>
               <input name="name" defaultValue={o.courier?.name} placeholder="Courier (e.g. Steadfast, Pathao)" required className={inp} data-testid="courier-name" /><input name="tracking_number" defaultValue={o.courier?.tracking_number} placeholder="Tracking number" className={inp} /><input name="tracking_url" defaultValue={o.courier?.tracking_url} placeholder="Tracking URL" className={inp} />
               <button className={`${btnOutline} w-full justify-center`} data-testid="courier-save-btn">Save courier</button></form></Card>
             <Card title="Add note"><form className="space-y-2" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); const form = e.currentTarget; run(() => api.post(`/admin/orders/${o.id}/notes`, { text: fd.get("text"), visible: fd.get("visible") === "on" }), "Note added").then(() => form.reset()); }}>

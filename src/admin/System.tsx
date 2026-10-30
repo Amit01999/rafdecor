@@ -121,8 +121,18 @@ export function AdminContent() {
           <p className="text-xs text-[#7A6960] sm:col-span-2">SSLCommerz: integration point ready — requires SSLCZ_STORE_ID / SSLCZ_STORE_PASSWORD on the server and testing before enabling.</p>
           <div className="sm:col-span-2"><L>Bank transfer instructions</L><textarea value={draft.payments?.bank_instructions || ""} onChange={(e) => up("payments", "bank_instructions", e.target.value)} rows={3} className="input-rd h-auto py-2" /></div>
           <div className="sm:col-span-2"><L>Bank account details (shown after order)</L><textarea value={draft.payments?.bank_details || ""} onChange={(e) => up("payments", "bank_details", e.target.value)} rows={3} className="input-rd h-auto py-2" placeholder="Bank, account name, account number, branch" data-testid="bank-details" /></div>
-          <div><L>Delivery calculation</L><select value={draft.shipping?.mode || "sum"} onChange={(e) => up("shipping", "mode", e.target.value)} className="input-rd"><option value="sum">Sum of each product's charge</option><option value="highest">Highest product charge only</option></select></div>
+          <div><L>Delivery calculation (when weight-based delivery is off)</L><select value={draft.shipping?.mode || "sum"} onChange={(e) => up("shipping", "mode", e.target.value)} className="input-rd"><option value="sum">Sum of each product's charge</option><option value="highest">Highest product charge only</option></select></div>
           <div><L>Free delivery over ৳ (blank = never)</L><input type="number" value={draft.shipping?.free_over ?? ""} onChange={(e) => up("shipping", "free_over", e.target.value ? Number(e.target.value) : null)} className="input-rd" /></div>
+          <div className="sm:col-span-2 border-t border-[#E6DDD0] pt-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={!!draft.shipping?.weight_rules?.enabled} onChange={(e) => up("shipping", "weight_rules", { ...draft.shipping?.weight_rules, enabled: e.target.checked })} data-testid="ship-weight-enabled" />
+              Use weight-based delivery charge
+            </label>
+            <p className="mt-1 text-xs text-[#7A6960]">Each product's own "Delivery charge" (set on its edit page) stays the base price, combined using the Sum/Highest rule above. The settings below only add an extra charge for weight above the free allowance — so heavier or bulkier combined orders cost a bit more, without changing what each product already costs to ship on its own.</p>
+          </div>
+          <div><L>Free weight before extra charge (kg)</L><input type="number" min={0} step="0.01" value={draft.shipping?.weight_rules?.base_weight_kg ?? ""} onChange={(e) => up("shipping", "weight_rules", { ...draft.shipping?.weight_rules, base_weight_kg: e.target.value ? Number(e.target.value) : 0 })} className="input-rd" data-testid="ship-weight-base-kg" /></div>
+          <div><L>Extra charge per kg over that ৳ (rounded up)</L><input type="number" min={0} value={draft.shipping?.weight_rules?.per_kg_charge ?? ""} onChange={(e) => up("shipping", "weight_rules", { ...draft.shipping?.weight_rules, per_kg_charge: e.target.value ? Number(e.target.value) : 0 })} className="input-rd" data-testid="ship-weight-per-kg" /></div>
+          <p className="text-xs text-[#7A6960] sm:col-span-2">Each product's weight (kg) is set on its own edit page, under Pricing.</p>
           <button className={btn} onClick={() => save(["payments", "shipping"])} data-testid="content-checkout-save">Save checkout settings</button>
         </div></Card></TabsContent>
       </Tabs>
