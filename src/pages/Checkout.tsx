@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { CartLines } from "@/components/store/CartDrawer";
 import { EmptyState, Field, PageLoader } from "@/components/common";
+import { WHATSAPP_DISPLAY_NUMBER, WHATSAPP_LINK, WhatsAppIcon } from "@/components/common/WhatsApp";
 
 function Summary({ coupon, setCoupon, quote, children }: any) {
   const [code, setCode] = useState(coupon || "");
@@ -153,6 +154,18 @@ export function CheckoutPage() {
           <p className="mt-3 text-center text-xs text-[#7A6960]">Prices and stock are confirmed by our server when you place the order.</p>
         </Summary>
       </form>
+      <a
+        href={`${WHATSAPP_LINK}?text=${encodeURIComponent("Hi, I need help with checkout.")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Chat with RAF Decor on WhatsApp at ${WHATSAPP_DISPLAY_NUMBER}`}
+        title={`WhatsApp ${WHATSAPP_DISPLAY_NUMBER}`}
+        className="fixed bottom-6 right-5 z-50 inline-flex h-12 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#1FB956] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+        data-testid="checkout-whatsapp-chat"
+      >
+        <WhatsAppIcon className="h-5 w-5" />
+        <span>{WHATSAPP_DISPLAY_NUMBER}</span>
+      </a>
     </div>
   );
 }

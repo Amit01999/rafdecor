@@ -85,6 +85,9 @@ export function AdminProducts() {
 
 const EMPTY = { name: "", slug: "", short_description: "", description: "", category_ids: [], status: "draft", featured: false, sku: "", price: 0, sale_price: null, manage_stock: false, stock_quantity: null, stock_status: "in_stock", low_stock_threshold: 2, attributes: [], variants: [], images: [], specs: [], dimensions: "", materials: "", shipping_charge: 0, weight: 0, extra_qty_charge: 0, tags: [], seo: { title: "", description: "" }, publish_at: null };
 
+const newEditorVariantKey = () => `variant-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const editorVariantKey = (v: any, i: number) => String(v.id || v._editor_key || `variant-${i}`);
+
 export function ProductEditor() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -92,15 +95,16 @@ export function ProductEditor() {
   const [p, setP] = useState<any>(isNew ? EMPTY : null);
   const [busy, setBusy] = useState(false);
   const [uploads, setUploads] = useState<{ id: string; name: string; progress: number }[]>([]);
+  const [variantUploads, setVariantUploads] = useState<Record<string, { name: string; progress: number }>>({});
   const { data: cats } = useQuery({ queryKey: ["admin-cats"], queryFn: async () => (await api.get("/admin/categories")).data.items });
-  useQuery({ queryKey: ["admin-product", id], enabled: !isNew, queryFn: async () => { const d = (await api.get(`/admin/products/${id}`)).data; setP(d); return d; } });
+  useQuery({ queryKey: ["admin-product", id], enabled: !isNew, queryFn: async () => { const d = (await api.get(`/admin/products/${id}`)).data; setP({ ...d, variants: (d.variants || []).map((v: any) => v.id ? v : { ...v, _editor_key: newEditorVariantKey() }) }); return d; } });
   if (!p) return <PageLoader />;
   const set = (k: string, v: any) => setP({ ...p, [k]: v });
   const num = (v: string) => (v === "" ? null : Number(v));
   const save = async () => {
     setBusy(true);
     try {
-      const body = { ...p, publish_at: p.publish_at || null };
+      const body = { ...p, variants: p.variants.map(({ _editor_key, ...v }: any) => v), publish_at: p.publish_at || null };
       if (isNew) await api.post("/admin/products", body); else await api.put(`/admin/products/${id}`, body);
       toast.success("Product saved");
       nav("/admin/products");
@@ -125,11 +129,34 @@ export function ProductEditor() {
       } catch (x) { toast.error(`${f.name}: ${errorMessage(x)}`); } finally { setUploads((u) => u.filter((x) => x.id !== id)); }
     }
   };
+  const uploadVariantImage = async (key: string, file: File | null) => {
+    if (!file) return;
+    if (!ACCEPTED_TYPES.includes(file.type)) { toast.error(`${file.name}: only JPEG, PNG, WebP or AVIF images are allowed`); return; }
+    if (file.size > MAX_BYTES) { toast.error(`${file.name}: must be 8 MB or smaller`); return; }
+    setVariantUploads((current) => ({ ...current, [key]: { name: file.name, progress: 0 } }));
+    const fd = new FormData(); fd.append("file", file);
+    try {
+      const { data } = await api.post("/admin/uploads", fd, {
+        onUploadProgress: (e) => setVariantUploads((current) => current[key]
+          ? { ...current, [key]: { ...current[key], progress: e.total ? Math.round((e.loaded / e.total) * 100) : current[key].progress } }
+          : current),
+      });
+      setP((prev: any) => prev ? ({
+        ...prev,
+        variants: (prev.variants || []).map((v: any, i: number) => editorVariantKey(v, i) === key
+          ? { ...v, image: { url: data.url, public_id: data.public_id, alt: `${prev.name} ${v.name?.trim() || Object.values(v.attributes || {}).join(", ")}`.trim() } }
+          : v),
+      }) : prev);
+      toast.success(`${file.name} uploaded`);
+    } catch (x) { toast.error(`${file.name}: ${errorMessage(x)}`); } finally {
+      setVariantUploads((current) => { const next = { ...current }; delete next[key]; return next; });
+    }
+  };
   const move = (i: number, d: number) => { const im = [...p.images]; [im[i], im[i + d]] = [im[i + d], im[i]]; set("images", im); };
   const L = ({ children }: any) => <label className="label-rd">{children}</label>;
   return (
     <AdminPage title={isNew ? "New product" : p.name} sub={!isNew ? `Created ${fmtDate(p.created_at, true)} · Updated ${fmtDate(p.updated_at, true)}${p.source?.wp_id ? ` · WordPress ID ${p.source.wp_id}` : ""}` : undefined} testId="product-editor"
-      actions={<><Link to="/admin/products" className={btnOutline}><ArrowLeft className="h-4 w-4" />Back</Link>{!isNew && <a href={`/product/${p.slug}`} target="_blank" rel="noreferrer" className={btnOutline}>Preview</a>}<button onClick={save} disabled={busy} className={btn} data-testid="product-save-btn">{busy ? "Saving…" : "Save product"}</button></>}>
+      actions={<><Link to="/admin/products" className={btnOutline}><ArrowLeft className="h-4 w-4" />Back</Link>{!isNew && <a href={`/product/${p.slug}`} target="_blank" rel="noreferrer" className={btnOutline}>Preview</a>}<button onClick={save} disabled={busy || Object.keys(variantUploads).length > 0} className={btn} data-testid="product-save-btn">{busy ? "Saving…" : Object.keys(variantUploads).length > 0 ? "Uploading variant images…" : "Save product"}</button></>}>
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card title="Details"><div className="grid gap-4 sm:grid-cols-2">
@@ -161,19 +188,37 @@ export function ProductEditor() {
               <div key={i} className="flex gap-2"><input value={s.label} onChange={(e) => set("specs", p.specs.map((x: any, k: number) => k === i ? { ...x, label: e.target.value } : x))} placeholder="Label" className={`${inp} w-1/3`} /><input value={s.value} onChange={(e) => set("specs", p.specs.map((x: any, k: number) => k === i ? { ...x, value: e.target.value } : x))} placeholder="Value" className={inp} /><button onClick={() => set("specs", p.specs.filter((_: any, k: number) => k !== i))} aria-label="Remove"><Trash2 className="h-4 w-4 text-red-800" /></button></div>
             ))}</div>
           </Card>
-          <Card title="Variants" actions={<button className={btnOutline} onClick={() => set("variants", [...p.variants, { sku: "", attributes: Object.fromEntries(p.attributes.map((a: any) => [a.name, a.values[0] || ""])), price: p.price, sale_price: null, stock_quantity: null, stock_status: "in_stock" }])} data-testid="pe-add-variant">Add variant</button>}>
+          <Card title="Variants" actions={<button className={btnOutline} onClick={() => set("variants", [...p.variants, { _editor_key: newEditorVariantKey(), name: "", sku: "", attributes: Object.fromEntries(p.attributes.map((a: any) => [a.name, a.values[0] || ""])), price: p.price, sale_price: null, stock_quantity: null, stock_status: "in_stock" }])} data-testid="pe-add-variant">Add variant</button>}>
             <p className="mb-3 text-xs text-[#7A6960]">Attributes (one per line, “Name: value1, value2”)</p>
             <textarea rows={2} className="input-rd h-auto py-2 text-xs" defaultValue={p.attributes.map((a: any) => `${a.name}: ${a.values.join(", ")}`).join("\n")}
               onBlur={(e) => set("attributes", e.target.value.split("\n").filter((l) => l.includes(":")).map((l) => { const [n, v] = l.split(":"); return { name: n.trim(), values: v.split(",").map((x) => x.trim()).filter(Boolean) }; }))} data-testid="pe-attributes" />
             <div className="mt-4 space-y-3">{p.variants.map((v: any, i: number) => {
+              const key = editorVariantKey(v, i);
+              const imageUpload = variantUploads[key];
               const upd = (k: string, val: any) => set("variants", p.variants.map((x: any, j: number) => j === i ? { ...x, [k]: val } : x));
               return (
-                <div key={v.id || i} className="grid items-end gap-2 border border-[#EFE7DA] p-3 sm:grid-cols-6" data-testid={`pe-variant-${i}`}>
+                <div key={key} className="grid items-end gap-2 border border-[#EFE7DA] p-3 sm:grid-cols-6" data-testid={`pe-variant-${i}`}>
+                  <div className="sm:col-span-6"><L>Variant name (optional)</L><input value={v.name || ""} onChange={(e) => upd("name", e.target.value)} placeholder="e.g. Curve S (Small)" className={inp} data-testid={`pe-variant-name-${i}`} /></div>
                   {p.attributes.map((a: any) => <div key={a.name}><L>{a.name}</L><select value={v.attributes[a.name] || ""} onChange={(e) => upd("attributes", { ...v.attributes, [a.name]: e.target.value })} className={inp}>{a.values.map((x: string) => <option key={x}>{x}</option>)}</select></div>)}
                   <div><L>Price</L><input type="text" inputMode="decimal" value={v.price || ""} onChange={(e) => { const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"); upd("price", raw === "" ? 0 : Number(raw)); }} className={inp} /></div>
                   <div><L>Sale</L><input type="text" inputMode="decimal" value={v.sale_price ?? ""} onChange={(e) => { const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"); upd("sale_price", num(raw)); }} className={inp} /></div>
                   <div><L>Stock</L><input type="number" value={v.stock_quantity ?? ""} onChange={(e) => upd("stock_quantity", num(e.target.value))} className={inp} disabled={!p.manage_stock} /></div>
                   <button onClick={() => set("variants", p.variants.filter((_: any, j: number) => j !== i))} className="h-9 text-xs text-red-800 underline">Remove</button>
+                  <div className="flex items-center gap-3 border-t border-[#EFE7DA] pt-3 sm:col-span-6">
+                    {v.image?.url ? <img src={cldImg(v.image.url, 120)} alt={v.image.alt || ""} className="h-14 w-14 shrink-0 border border-[#E6DDD0] object-cover" data-testid={`pe-variant-image-${i}`} /> : <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-dashed border-[#E6DDD0] bg-[#FAF7F2]"><Upload className="h-4 w-4 text-[#A89A90]" /></div>}
+                    <div className="min-w-0 flex-1">
+                      <L>Variant image (optional)</L>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <label className={`${btnOutline} cursor-pointer ${imageUpload ? "pointer-events-none opacity-60" : ""}`} data-testid={`pe-variant-image-upload-${i}`}>
+                          {imageUpload ? <Spinner className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+                          {imageUpload ? `Uploading ${imageUpload.progress}%` : v.image?.url ? "Replace image" : "Upload image"}
+                          <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" disabled={!!imageUpload} onChange={(e) => { void uploadVariantImage(key, e.currentTarget.files?.[0] || null); e.currentTarget.value = ""; }} data-testid={`pe-variant-image-input-${i}`} />
+                        </label>
+                        {v.image?.url && <button type="button" onClick={() => upd("image", null)} className="text-xs text-red-800 underline" data-testid={`pe-variant-image-remove-${i}`}>Remove image</button>}
+                        {imageUpload && <span className="truncate text-xs text-[#7A6960]">{imageUpload.name}</span>}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })}</div>

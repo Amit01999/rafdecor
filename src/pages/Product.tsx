@@ -14,22 +14,33 @@ import { useAuth } from "@/context/AuthContext";
 import { Breadcrumbs, EmptyState, PageLoader, Price } from "@/components/common";
 import { ProductCard } from "@/components/store/ProductCard";
 import { QtyStepper } from "@/components/store/CartDrawer";
-import type { Product } from "@/types";
+import { WHATSAPP_DISPLAY_NUMBER, WHATSAPP_LINK, WhatsAppIcon } from "@/components/common/WhatsApp";
+import type { Img, Product } from "@/types";
 
-function Gallery({ p }: { p: Product }) {
+function Gallery({ p, variantImage, variantId }: { p: Product; variantImage?: Img; variantId?: string }) {
   const [i, setI] = useState(0);
   const [zoom, setZoom] = useState(false);
-  const img = p.images[i] || p.images[0];
-  useEffect(() => setI(0), [p.id]);
+  const [activeVariantImage, setActiveVariantImage] = useState<Img | null>(null);
+  const img = i === -1 && activeVariantImage ? activeVariantImage : p.images[i] || p.images[0] || activeVariantImage;
+  const galleryImages = activeVariantImage ? [...p.images, activeVariantImage] : p.images;
+  useEffect(() => { setI(0); setActiveVariantImage(null); }, [p.id]);
+  useEffect(() => {
+    if (variantImage?.url) {
+      setActiveVariantImage(variantImage);
+      setI(-1);
+    }
+  }, [p.id, variantId, variantImage]);
   return (
     <div className="flex flex-col-reverse gap-4 md:flex-row" data-testid="product-gallery">
-      {p.images.length > 1 && (
+      {galleryImages.length > 1 && (
         <div className="flex gap-3 md:w-20 md:flex-col">
-          {p.images.map((im, k) => (
-            <button key={k} onClick={() => { setI(k); track("product_engagement", { product_id: p.id }); }} className={`aspect-square w-16 shrink-0 overflow-hidden rounded-lg border-2 shadow-sm transition-all duration-200 md:w-20 ${k === i ? "border-[#B07A5B] shadow-md" : "border-transparent opacity-70 hover:opacity-100 hover:border-[#E6DDD0]"}`} aria-label={`View image ${k + 1}`} data-testid={`gallery-thumb-${k}`}>
+          {galleryImages.map((im, k) => {
+            const isVariantImage = !!activeVariantImage && k === p.images.length;
+            const active = isVariantImage ? i === -1 : k === i;
+            return <button key={isVariantImage ? `variant-${variantId || activeVariantImage?.url}` : k} onClick={() => { setI(isVariantImage ? -1 : k); track("product_engagement", { product_id: p.id }); }} className={`aspect-square w-16 shrink-0 overflow-hidden rounded-lg border-2 shadow-sm transition-all duration-200 md:w-20 ${active ? "border-[#B07A5B] shadow-md" : "border-transparent opacity-70 hover:opacity-100 hover:border-[#E6DDD0]"}`} aria-label={isVariantImage ? "View variant image" : `View image ${k + 1}`} data-testid={`gallery-thumb-${k}`}>
               <img src={cldImg(im.url, 200)} alt="" className="h-full w-full object-cover" />
-            </button>
-          ))}
+            </button>;
+          })}
         </div>
       )}
       <button className="group relative flex-1 cursor-zoom-in overflow-hidden rounded-2xl bg-[#F2ECE0] shadow-[0_18px_44px_rgba(44,30,24,0.12)] ring-1 ring-[#2C1E18]/5" onClick={() => setZoom(true)} aria-label="Zoom image" data-testid="gallery-main">
@@ -111,6 +122,7 @@ export default function ProductPage() {
   const { add } = useCart();
   const wl = useWishlist();
   const [sel, setSel] = useState<Record<string, string>>({});
+  const [namedVariantId, setNamedVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [ask, setAsk] = useState(false);
   const { data: p, isLoading, isError } = useQuery<Product>({ queryKey: ["product", slug], queryFn: async () => (await api.get(`/products/${slug}`)).data, retry: false });
@@ -124,10 +136,13 @@ export default function ProductPage() {
     track("product_view", { product_id: p.id });
     const r = [p.id, ...JSON.parse(localStorage.getItem("rd_recent") || "[]").filter((x: string) => x !== p.id)].slice(0, 8);
     localStorage.setItem("rd_recent", JSON.stringify(r));
-    setSel({}); setQty(1);
+    setSel({}); setNamedVariantId(null); setQty(1);
   }, [p]);
 
-  const variant = p?.variants.find((v) => p.attributes.every((a) => sel[a.name] && v.attributes[a.name] === sel[a.name]));
+  const useNamedVariantPicker = !!p && !p.attributes.length && p.variants.some((v) => !!v.name?.trim());
+  const variant = p?.variants.find((v) => useNamedVariantPicker
+    ? v.id === namedVariantId
+    : p.attributes.every((a) => sel[a.name] && v.attributes[a.name] === sel[a.name]));
   const needsVariant = !!p?.variants.length && !variant;
   const available = variant ? variant.available : p?.available;
   const inStock = variant ? variant.in_stock : p?.in_stock;
@@ -150,7 +165,7 @@ export default function ProductPage() {
     <div data-testid="product-page">
       <div className="container-rd pt-8"><Breadcrumbs items={[{ label: "Home", to: "/" }, { label: "Shop", to: "/shop" }, ...(cat ? [{ label: cat.name, to: `/product-category/${cat.slug}` }] : []), { label: p.name }]} /></div>
       <div className="container-rd grid gap-12 py-8 lg:grid-cols-12 lg:gap-16">
-        <div className="lg:sticky lg:top-24 lg:col-span-7 lg:self-start"><Gallery p={p} /></div>
+        <div className="lg:sticky lg:top-24 lg:col-span-7 lg:self-start"><Gallery p={p} variantImage={variant?.image} variantId={variant?.id} /></div>
         <div className="lg:col-span-5">
           {cat && <p className="eyebrow">{cat.name}</p>}
           <h1 className="mt-3 font-serif text-3xl leading-tight tracking-tight text-[#2C1E18] sm:text-4xl" data-testid="product-title">{p.name}</h1>
@@ -159,7 +174,17 @@ export default function ProductPage() {
           </div>
           <p className="mt-6 font-bn text-[15px] leading-[1.9] text-[#594940]">{p.short_description}</p>
 
-          {p.attributes.filter((a) => p.variants.length).map((a) => (
+          {useNamedVariantPicker ? (
+            <div className="mt-8" data-testid="variant-group-name">
+              <p className="label-rd">Variant{namedVariantId && variant && <span className="ml-2 normal-case tracking-normal text-[#2C1E18]">{variant.name?.trim() || Object.values(variant.attributes || {}).join(", ") || `Option ${p.variants.indexOf(variant) + 1}`}</span>}</p>
+              <div className="flex flex-wrap gap-2">
+                {p.variants.map((v, i) => {
+                  const label = v.name?.trim() || Object.values(v.attributes || {}).join(", ") || `Option ${i + 1}`;
+                  return <button key={v.id} disabled={!v.in_stock} onClick={() => setNamedVariantId(v.id)} className={`min-w-[72px] rounded-[4px] border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${namedVariantId === v.id ? "border-[#4E3629] bg-[#4E3629] text-white shadow-sm" : "border-[#E6DDD0] bg-white hover:border-[#B07A5B] hover:shadow-sm"} disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`} data-testid={`variant-option-name-${i}`}>{label}</button>;
+                })}
+              </div>
+            </div>
+          ) : p.attributes.filter((a) => p.variants.length).map((a) => (
             <div key={a.name} className="mt-8" data-testid={`variant-group-${a.name}`}>
               <p className="label-rd">{a.name}{sel[a.name] && <span className="ml-2 normal-case tracking-normal text-[#2C1E18]">{sel[a.name]}</span>}</p>
               <div className="flex flex-wrap gap-2">
@@ -203,6 +228,18 @@ export default function ProductPage() {
         </div>
       </div>
       <Reviews p={p} />
+      <a
+        href={`${WHATSAPP_LINK}?text=${encodeURIComponent(`Hi, I'm interested in ${p.name}.`)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Chat with RAF Decor on WhatsApp at ${WHATSAPP_DISPLAY_NUMBER}`}
+        title={`WhatsApp ${WHATSAPP_DISPLAY_NUMBER}`}
+        className="fixed bottom-6 right-5 z-50 inline-flex h-12 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#1FB956] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+        data-testid="product-whatsapp-chat"
+      >
+        <WhatsAppIcon className="h-5 w-5" />
+        <span>{WHATSAPP_DISPLAY_NUMBER}</span>
+      </a>
       {related && related.length > 0 && (
         <section className="bg-[#F2ECE0] py-16" data-testid="related-products">
           <div className="container-rd text-center">

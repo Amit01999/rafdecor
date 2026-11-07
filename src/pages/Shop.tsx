@@ -100,10 +100,10 @@ export default function Shop() {
       <div className="mt-10 grid gap-12 lg:grid-cols-[220px_1fr]">
         <aside className="hidden lg:block"><Filters params={params} set={set} facets={query.data?.facets} /></aside>
         <div>
-          {query.isLoading ? <ProductGridSkeleton /> : query.isError ? <ErrorState onRetry={() => query.refetch()} /> : items.length === 0 ? (
+          {query.isLoading ? <ProductGridSkeleton compactMobile /> : query.isError ? <ErrorState onRetry={() => query.refetch()} /> : items.length === 0 ? (
             <EmptyState title="No products found" body="Try removing a filter or searching for something else." action={<button className="btn-outline" onClick={() => setParams(new URLSearchParams())} data-testid="shop-clear-filters">Clear all filters</button>} />
           ) : (
-            <div className={`grid grid-cols-1 gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 transition-opacity ${query.isFetching ? "opacity-60" : ""}`} data-testid="shop-grid">{items.map((p, i) => <ProductCard key={p.id} p={p} index={i} />)}</div>
+            <div className={`grid grid-cols-2 gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 transition-opacity ${query.isFetching ? "opacity-60" : ""}`} data-testid="shop-grid">{items.map((p, i) => <ProductCard key={p.id} p={p} index={i} compactMobile />)}</div>
           )}
           {query.data?.pages > 1 && (
             <nav className="mt-14 flex justify-center gap-2" aria-label="Pagination" data-testid="shop-pagination">

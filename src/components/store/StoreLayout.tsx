@@ -31,6 +31,10 @@ import { CartDrawer } from './CartDrawer';
 import { api } from '@/lib/api';
 import { track } from '@/lib/seo';
 import { money, cldImg } from '@/lib/format';
+import {
+  WHATSAPP_LINK,
+  WhatsAppIcon,
+} from '@/components/common/WhatsApp';
 
 const LOGO = logo;
 
@@ -297,6 +301,11 @@ function Footer() {
         'https://www.instagram.com/rafdecor_official?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==',
       Icon: Instagram,
       label: 'Instagram',
+    },
+    {
+      href: WHATSAPP_LINK,
+      Icon: WhatsAppIcon,
+      label: 'WhatsApp',
     },
   ];
   return (

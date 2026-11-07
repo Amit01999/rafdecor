@@ -49,11 +49,11 @@ function Section({
   testId: string;
 }) {
   return (
-    <section className="bg-[#F2ECE0] py-10 lg:py-24" data-testid={testId}>
+    <section className="bg-[#F2ECE0] py-8 lg:py-16" data-testid={testId}>
       <div className="container-rd">
         <div className="relative mb-10 text-center">
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h2 className="mx-auto mb-7 mt-3 max-w-lg font-serif text-3xl font-semibold leading-[1.2] tracking-tight text-[#372318] sm:text-4xl lg:text-[2.5rem]">
+          <h2 className="mx-auto mb-5 mt-3 max-w-lg font-serif text-2xl font-semibold leading-[1.2] tracking-tight text-[#372318] sm:text-4xl lg:text-[2.5rem]">
             {title}
           </h2>
           <div className="mx-auto h-[2px] w-14 bg-[#B07A5B]" />
@@ -141,7 +141,7 @@ export default function Home() {
   return (
     <div>
       <HomeHero s={s} />
-
+      {/* featured section */}
       {(featured.isLoading || featured.isError || products.length > 0) && (
         <Section
           eyebrow={s?.home?.collection_eyebrow}
@@ -150,21 +150,21 @@ export default function Home() {
           testId="home-featured"
         >
           {featured.isLoading ? (
-            <ProductGridSkeleton />
+            <ProductGridSkeleton compactMobile />
           ) : featured.isError ? (
             <ErrorState onRetry={() => featured.refetch()} />
           ) : (
-            <div className="grid grid-cols-1 gap-x-2 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-2 gap-x-1.5 gap-y-3 sm:grid-cols-2 sm:gap-x-2 sm:gap-y-12 lg:grid-cols-3">
               {products.map((p, i) => (
-                <ProductCard key={p.id} p={p} index={i} />
+                <ProductCard key={p.id} p={p} index={i} compactMobile />
               ))}
             </div>
           )}
         </Section>
       )}
-
+      {/* philosophy section */}
       <section
-        className="relative mt-5 overflow-hidden bg-[#FAF7F2] py-16 lg:py-20"
+        className="relative overflow-hidden bg-[#FAF7F2] py-16 lg:py-20"
         data-testid="home-philosophy"
       >
         <div className="container-rd grid items-center gap-14 lg:grid-cols-12 lg:gap-16">
@@ -251,7 +251,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      {/* categories section */}
       {categoryList.length > 0 && (
         <section
           className="bg-[#FAF7F2] py-16 lg:py-24"
@@ -406,7 +406,7 @@ export default function Home() {
           </div>
         </Section>
       )} */}
-
+      {/* sale section */}
       {sale.data && sale.data.length > 0 && (
         <Section
           eyebrow="Limited time"
@@ -421,6 +421,7 @@ export default function Home() {
           </div>
         </Section>
       )}
+      {/* service section */}
       <section
         className="relative overflow-hidden bg-[#1F1916] py-12 lg:py-16 grain "
         data-testid="home-service"
@@ -499,7 +500,7 @@ export default function Home() {
           </Link>
         </section>
       ))} */}
-
+      {/* loyalty section */}
       <section
         className="bg-[#F2ECE0] py-16 lg:py-24"
         data-testid="home-loyalty"
@@ -583,6 +584,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* cta section */}
       <section className="container-rd" data-testid="home-cta">
         <motion.div
           className="grid overflow-hidden rounded-[3px] shadow-[0_24px_56px_rgba(44,30,24,0.18)] lg:grid-cols-2 mt-16"

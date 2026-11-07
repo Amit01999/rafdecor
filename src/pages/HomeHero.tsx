@@ -301,7 +301,7 @@ function ProductCopy({
       className={`absolute inset-0 ${mode === 'active' ? '' : 'pointer-events-none'}`}
       aria-hidden={leaving || undefined}
     >
-      <div className="container-rd relative flex min-h-[100svh] justify-center pb-[138px] pt-14 text-center sm:pt-16 lg:pb-28">
+      <div className="container-rd relative flex min-h-[70svh] justify-center pb-[138px] pt-14 text-center sm:min-h-[100svh] sm:pt-16 lg:pb-28">
         <div className="mx-auto w-full max-w-[880px]">
           <motion.p
             {...lineMotion(
@@ -701,7 +701,7 @@ export default function HomeHero({ s }: { s: any }) {
 
   return (
     <section
-      className="relative isolate min-h-[100svh] overflow-hidden bg-[#1F1916] text-[#FAF7F2]"
+      className="relative isolate min-h-[70svh] overflow-hidden bg-[#1F1916] text-[#FAF7F2] sm:min-h-[100svh]"
       data-testid="home-hero"
       role="region"
       aria-label="Featured RAF Decor pieces"
