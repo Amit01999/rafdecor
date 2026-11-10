@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ShoppingBag, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, errorMessage, errorIssues } from "@/lib/api";
 import { money, cldImg, sessionId } from "@/lib/format";
 import { track, useSeo } from "@/lib/seo";
+import { markMetaPurchasePending, trackMetaEventOnceForLocation, trackMetaPurchase } from "@/lib/metaPixel";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { CartLines } from "@/components/store/CartDrawer";
@@ -60,6 +61,7 @@ export function CartPage() {
 export function CheckoutPage() {
   const { items, quote, clear } = useCart();
   const { user } = useAuth();
+  const location = useLocation();
   const nav = useNavigate();
   const [coupon, setCoupon] = useState<string | null>(() => sessionStorage.getItem("rd_coupon"));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -72,6 +74,19 @@ export function CheckoutPage() {
   const { data: me } = useQuery({ queryKey: ["me-full"], queryFn: async () => (await api.get("/customers/me")).data, enabled: !!user });
   const { data: q, refetch } = useQuery({ queryKey: ["checkout-quote", items, coupon], queryFn: async () => (await api.post("/cart/quote", { items, coupon_code: coupon })).data, enabled: items.length > 0 });
   useEffect(() => { if (items.length) track("checkout_start"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!items.length || !q || q.issues.length || !q.lines.length || !q.currency) return;
+    const contents = q.lines.map((line: any) => ({ id: line.product_id, quantity: line.quantity, item_price: line.unit_price }));
+    trackMetaEventOnceForLocation("InitiateCheckout", JSON.stringify([location.key, "checkout"]), {
+      content_ids: contents.map((content: any) => content.id),
+      content_name: q.lines.map((line: any) => line.name).join(", "),
+      content_type: "product",
+      contents,
+      value: q.total,
+      currency: q.currency,
+      num_items: contents.reduce((sum: number, content: any) => sum + content.quantity, 0),
+    });
+  }, [items.length, location.key, q]);
   const addr = me?.addresses?.find((a: any) => a.is_default);
   useEffect(() => { if (addr?.district) setDistrict(addr.district); }, [addr?.district]);
   if (!items.length) return <div className="container-rd py-20"><EmptyState title="Nothing to check out" body="Your cart is empty." action={<Link to="/shop" className="btn-primary">Browse the shop</Link>} /></div>;
@@ -93,6 +108,8 @@ export function CheckoutPage() {
         customer: { name: f.name, phone: f.phone, email: f.email || null },
         shipping_address: { address: f.address, district, area: f.area || "", notes: f.notes || "" },
       }, { headers: { "x-session-id": sessionId() } });
+      trackMetaPurchase(data.order, "cod_order_placed");
+      markMetaPurchasePending(data.order);
       clear();
       sessionStorage.removeItem("rd_coupon");
       sessionStorage.setItem("rd_last_order", JSON.stringify(data.order));

@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -17,13 +18,30 @@ import { AdminProducts, ProductEditor, AdminCategories, AdminInventory, AdminRev
 import { AdminHomepageFeatured } from "@/admin/HomepageFeatured";
 import { AdminOrders, AdminOrderDetail, AdminCustomers, AdminInquiries } from "@/admin/Operations";
 import { AdminMarketing, AdminContent, AdminAnalytics, AdminStaff, AdminAudit, AdminMigration } from "@/admin/System";
+import { trackMetaPageView } from "@/lib/metaPixel";
 
 const StepRedirect = () => <Navigate to={`/product/${useParams().slug}`} replace />;
+
+function MetaPixelPageViews() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackMetaPageView(
+      JSON.stringify([location.key, location.pathname, location.search, location.hash]),
+      location.pathname,
+      location.search,
+      location.hash,
+    );
+  }, [location.key, location.pathname, location.search, location.hash]);
+
+  return null;
+}
 
 export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <MetaPixelPageViews />
         <AuthProvider>
           <CartProvider>
             <Routes>

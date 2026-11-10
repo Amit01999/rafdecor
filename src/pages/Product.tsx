@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Heart, Truck, Banknote, MessageCircle, ZoomIn, Star, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { api, errorMessage } from "@/lib/api";
 import { track, useSeo } from "@/lib/seo";
+import { trackMetaEvent } from "@/lib/metaPixel";
 import { money, cldImg, fmtDate } from "@/lib/format";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/SiteContext";
@@ -118,6 +119,7 @@ function Reviews({ p }: { p: Product }) {
 
 export default function ProductPage() {
   const { slug } = useParams();
+  const location = useLocation();
   const nav = useNavigate();
   const { add } = useCart();
   const wl = useWishlist();
@@ -125,6 +127,7 @@ export default function ProductPage() {
   const [namedVariantId, setNamedVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [ask, setAsk] = useState(false);
+  const viewedProductPage = useRef<string | null>(null);
   const { data: p, isLoading, isError } = useQuery<Product>({ queryKey: ["product", slug], queryFn: async () => (await api.get(`/products/${slug}`)).data, retry: false });
   const { data: related } = useQuery({ queryKey: ["related", slug], queryFn: async () => (await api.get(`/products/${slug}/related`)).data.items as Product[], enabled: !!p });
   const { data: site } = useQuery({ queryKey: ["checkout-options"], queryFn: async () => (await api.get("/checkout/options")).data });
@@ -134,10 +137,25 @@ export default function ProductPage() {
   useEffect(() => {
     if (!p) return;
     track("product_view", { product_id: p.id });
+    const viewPrice = p.price_min;
+    const viewToken = JSON.stringify([location.key, p.id]);
+    if (viewedProductPage.current !== viewToken) {
+      viewedProductPage.current = viewToken;
+      trackMetaEvent("ViewContent", {
+        content_ids: [p.id],
+        content_name: p.name,
+        content_category: p.categories?.map((category) => category.name).join(", "),
+        content_type: "product",
+        contents: [{ id: p.id, quantity: 1, item_price: viewPrice }],
+        value: viewPrice,
+        currency: "BDT",
+        num_items: 1,
+      });
+    }
     const r = [p.id, ...JSON.parse(localStorage.getItem("rd_recent") || "[]").filter((x: string) => x !== p.id)].slice(0, 8);
     localStorage.setItem("rd_recent", JSON.stringify(r));
     setSel({}); setNamedVariantId(null); setQty(1);
-  }, [p]);
+  }, [p, location.key]);
 
   const useNamedVariantPicker = !!p && !p.attributes.length && p.variants.some((v) => !!v.name?.trim());
   const variant = p?.variants.find((v) => useNamedVariantPicker
@@ -157,7 +175,12 @@ export default function ProductPage() {
 
   const doAdd = (buy = false) => {
     if (needsVariant) { toast.error("Please select an option first"); return; }
-    add({ product_id: p.id, variant_id: variant?.id || null, quantity: qty }, p.name);
+    add({ product_id: p.id, variant_id: variant?.id || null, quantity: qty }, p.name, {
+      name: p.name,
+      category: p.categories?.[0]?.name,
+      price: variant?.effective_price ?? p.price_min,
+      currency: "BDT",
+    });
     if (buy) nav("/checkout");
   };
   const cat = p.categories?.[0];

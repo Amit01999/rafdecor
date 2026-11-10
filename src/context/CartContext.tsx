@@ -3,8 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { track } from "@/lib/seo";
+import { trackMetaEvent } from "@/lib/metaPixel";
 import { useAuth } from "./AuthContext";
 import type { CartLine, Quote } from "@/types";
+
+type AddTrackingData = { name: string; category?: string; price: number; currency: string };
 
 interface CartCtx {
   items: CartLine[];
@@ -13,7 +16,7 @@ interface CartCtx {
   count: number;
   open: boolean;
   setOpen: (v: boolean) => void;
-  add: (line: CartLine, name?: string) => void;
+  add: (line: CartLine, name?: string, tracking?: AddTrackingData) => void;
   setQty: (product_id: string, variant_id: string | null | undefined, qty: number) => void;
   remove: (product_id: string, variant_id?: string | null) => void;
   clear: () => void;
@@ -62,13 +65,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     staleTime: 15_000,
   });
 
-  const add = useCallback((line: CartLine, name?: string) => {
+  const add = useCallback((line: CartLine, name?: string, tracking?: AddTrackingData) => {
     setItems((prev) => {
       const ex = prev.find((p) => same(p, line.product_id, line.variant_id));
       if (ex) return prev.map((p) => (p === ex ? { ...p, quantity: Math.min(99, p.quantity + line.quantity) } : p));
       return [...prev, { ...line, variant_id: line.variant_id || null }];
     });
     track("add_to_cart", { product_id: line.product_id, quantity: line.quantity });
+    if (tracking) {
+      const content = { id: line.product_id, quantity: line.quantity, item_price: tracking.price };
+      trackMetaEvent("AddToCart", {
+        content_ids: [line.product_id],
+        content_name: tracking.name,
+        content_category: tracking.category,
+        content_type: "product",
+        contents: [content],
+        value: Math.round(tracking.price * line.quantity * 100) / 100,
+        currency: tracking.currency,
+        num_items: line.quantity,
+      });
+    }
     toast.success(name ? `${name} added to your cart` : "Added to cart");
     setOpen(true);
   }, []);

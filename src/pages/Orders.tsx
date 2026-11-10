@@ -7,6 +7,7 @@ import { money, cldImg, fmtDate } from "@/lib/format";
 import { useSeo } from "@/lib/seo";
 import { useAuth } from "@/context/AuthContext";
 import { OrderTimeline, StatusBadge, Field } from "@/components/common";
+import { trackMetaPurchase } from "@/lib/metaPixel";
 
 export function OrderView({ o }: { o: any }) {
   return (
@@ -72,7 +73,11 @@ export function TrackOrder() {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as any;
     setBusy(true); setErr("");
-    try { setO((await api.post("/orders/track", f)).data); } catch (x) { setO(null); setErr(errorMessage(x)); } finally { setBusy(false); }
+    try {
+      const order = (await api.post("/orders/track", f)).data;
+      setO(order);
+      trackMetaPurchase(order, "verified_payment");
+    } catch (x) { setO(null); setErr(errorMessage(x)); } finally { setBusy(false); }
   };
   return (
     <div className="container-rd py-14" data-testid="track-order-page">
