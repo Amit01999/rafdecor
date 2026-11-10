@@ -3,6 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
+      "has": [{ "type": "host", "value": { "inc": ["rafdecor.com.bd", "www.rafdecor.com.bd"] } }],
+      "destination": "https://api.rafdecor.shop/api/:path*"
+    },
+    {
+      "source": "/api/:path*",
       "destination": "https://backend-pc47.vercel.app/api/:path*"
     },
     { "source": "/(.*)", "destination": "/index.html" }
